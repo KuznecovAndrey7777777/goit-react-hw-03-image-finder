@@ -14,50 +14,45 @@ class App extends Component {
     isLoading: false,
     showModal: false,
     largeImageURL: '',
+    hasMoreImages: true,
   };
 
   componentDidUpdate(prevProps, prevState) {
-    const { searchQuery, currentPage } = this.state;
-
-    if (
-      prevState.searchQuery !== searchQuery ||
-      prevState.currentPage !== currentPage
-    ) {
+    if (prevState.searchQuery !== this.state.searchQuery || prevState.currentPage !== this.state.currentPage) {
       this.fetchImages();
     }
   }
 
   fetchImages = async () => {
-    this.setState({ isLoading: true });
     const { searchQuery, currentPage } = this.state;
     const apiKey = '31731640-63415b264c7abe0734c9208e1';
+    const url = `https://pixabay.com/api/?q=${encodeURIComponent(searchQuery)}&page=${currentPage}&key=${apiKey}&image_type=photo&orientation=horizontal&per_page=12`;
+
+    this.setState({ isLoading: true });
 
     try {
-      const response = await fetch(
-        `https://pixabay.com/api/?q=${encodeURIComponent(
-          searchQuery
-        )}&page=${currentPage}&key=${apiKey}&image_type=photo&orientation=horizontal&per_page=12`
-      );
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Помилка отримання зображень');
       }
       const data = await response.json();
       this.setState(prevState => ({
-        images:
-          currentPage === 1 ? data.hits : [...prevState.images, ...data.hits],
+        images: [...prevState.images, ...data.hits],
         isLoading: false,
+        hasMoreImages: data.hits.length > 0,
       }));
     } catch (error) {
       console.error('Під час отримання зображень сталася помилка:', error);
-      this.setState({ isLoading: false });
+      this.setState({ isLoading: false, hasMoreImages: false });
     }
   };
 
-  handleSearchSubmit = query => {
+  handleSearchSubmit = (query) => {
     this.setState({
       searchQuery: query,
       currentPage: 1,
       images: [],
+      hasMoreImages: true,
     });
   };
 
@@ -67,7 +62,7 @@ class App extends Component {
     }));
   };
 
-  openModal = imageURL => {
+  openModal = (imageURL) => {
     this.setState({
       showModal: true,
       largeImageURL: imageURL,
@@ -82,16 +77,19 @@ class App extends Component {
   };
 
   render() {
-    const { images, isLoading, showModal, largeImageURL } = this.state;
+    const { images, isLoading, showModal, largeImageURL, hasMoreImages } = this.state;
+
     return (
       <div className="App">
         <Searchbar onSubmit={this.handleSearchSubmit} />
         <ImageGallery images={images} onImageClick={this.openModal} />
         {isLoading && <Loader />}
-        {images.length > 0 && !isLoading && (
+        {images.length > 0 && hasMoreImages && !isLoading && (
           <Button onLoadMore={this.handleLoadMore} />
         )}
-        {showModal && <Modal image={largeImageURL} onClose={this.closeModal} />}
+        {showModal && (
+          <Modal image={largeImageURL} onClose={this.closeModal} />
+        )}
       </div>
     );
   }
